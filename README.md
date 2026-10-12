@@ -2,7 +2,7 @@
 
 Widget de home-screen para [omalauncher](https://github.com/SimonSchubert/omarchy-widgets) que muestra los próximos arribos de **Tu Bondi** en Córdoba. Es la versión widget de [Tu-Bondi-Tracker](https://github.com/LucioB16/Tu-Bondi-Tracker): mismas paradas, mismas líneas, mismo flujo contra la API municipal, pero sin backend .NET — el widget consulta directo y vive en el teléfono.
 
-Por defecto: paradas **A911** (AV. DUARTE QUIROS 1717-1728), líneas **40, 42 y 71**. Acepta **una o más paradas** y trae un **catálogo por barrio + las 74 líneas** para configurar tocando botones, sin escribir códigos.
+Por defecto: paradas **A911** (AV. DUARTE QUIROS 1717-1728), líneas **40, 42 y 71**. Acepta **una o más paradas** y trae un **buscador sobre 5050 paradas + las 72 líneas** para configurar tocando botones, sin escribir códigos.
 
 ## Configuración en 30 segundos (sin escribir códigos)
 
@@ -37,7 +37,7 @@ Un widget OWL de un solo archivo (`widget.owl`, ~7 KB) que replica el tablero LE
       └────────────────── tile 3x3 + screen ─────────────────────────┘
 ```
 
-1. El `cmd` abre **una** sesión con `GET /web/urbano/?conf=cbaciudad` (guarda `PHPSESSID` en un cookiejar temporal) y luego hace **un `POST /usuario/urbano2_cmd.php` por parada** con `conf=cbaciudad`, `codigo=<parada>`, `show80min=true`, `onlygps_array={}`, `cmd=proximos_arribos` — los mismos parámetros que `TuBondiClient.GetArrivalsAsync` en el repo original. Una sola sesión sirve para todas.
+1. El `cmd` abre sesión con `GET /usuario/urbano.php?conf=cbaciudad` (cookie `PHPSESSID` en cookiejar temporal), extrae `operacion:'…'` del HTML, registra un `fp` aleatorio vía `POST ...?cmd=vista` y luego hace **un `POST /usuario/urbano2_cmd.php` por parada** con headers de browser + `X-Device-FlakerParam` y form `conf`, `codigo`, `show80min=true`, `onlygps_array={}`, `cmd=proximos_arribos` — los mismos parámetros que `TuBondiClient.GetArrivalsAsync` en el repo original, más el ritual anti-408 que exige el servidor (ver `docs/api.md`). Una sola sesión sirve para todas.
 2. `jq` normaliza cada `proximos_arribos` a `{line, dest, route, etaTxt, eta, dist, color, op, notif}` más `stop`, y combina todo en `{stops, arrivals, updated, error}`. `eta` se extrae igual que `TuBondiGateway.ParseEta`: “arribando/llega” → 0, si no los dígitos (`11min` → 11).
 3. El widget filtra por las líneas configuradas, ordena por `eta` y toma 6 (2 en el tile; con varias paradas cada fila indica `línea · parada`).
 4. Si el POST falla o no es JSON, el script imprime `{"error":"offline",...}` y el tile ofrece reintentar, como el `fetchLoop` de `board.js`.
@@ -55,11 +55,16 @@ Un widget OWL de un solo archivo (`widget.owl`, ~7 KB) que replica el tablero LE
    cp widget.owl ~/.config/omalauncher/widgets/30-tu-bondi.owl
    ```
    Aparece en la home en ~1 segundo.
-2. Instalá lo que declara:
+2. Copiá el catálogo de paradas (5050 paradas con barrio, lo usa el buscador):
+   ```
+   cp api-examples/tubondi-catalogo.json ~/.cache/tubondi-catalogo.json
+   ```
+   Sin ese archivo el widget usa 32 paradas de muestra.
+3. Instalá lo que declara:
    ```
    pacman -S --needed curl jq
    ```
-3. Verificá que compila y mirá el preview con datos vivos:
+4. Verificá que compila y mirá el preview con datos vivos:
    ```
    owl-check 30-tu-bondi.owl
    ```
@@ -67,9 +72,9 @@ Un widget OWL de un solo archivo (`widget.owl`, ~7 KB) que replica el tablero LE
 
 ## Catálogo de paradas y líneas
 
-- **Paradas**: `api-examples/catalogo-semilla.json` — 79 paradas reales en 26 barrios (cruce de `seleccionatraza` de la ruta 99 de la línea 42 con los polígonos oficiales de barrios de la Municipalidad). El widget las muestra agrupadas por barrio con botones para agregar/quitar.
-- **Líneas**: las 74 de `api-examples/01-lines_routes.json`, agrupadas por empresa (TAMSE, CONIFERAL, FAM, SI BUS) con botones de filtro.
-- **Para completar el catálogo** a toda la ciudad: de día (con la API en servicio, de noche devuelve 408) corré `./tools/cosechar-paradas.sh`, que consulta `seleccionatraza` para cada ruta con una sola sesión, y luego cruzá con `python3 tools/unir-barrios.py` usando los polígonos de https://github.com/OpenDataCordoba/barrios (`cordoba.geojson`). Después regenerá el bloque `hoodCatalog` de `widget.owl` con esos datos.
+- **Paradas**: `api-examples/tubondi-catalogo.json` — **5050 paradas** en 408 barrios + 24 hubs (cruce de `seleccionatraza` de las 160 rutas con los polígonos oficiales de barrios). El widget trae buscador por código/calle/barrio, botones de hubs y chips de "mis paradas". (`catalogo-semilla.json` guarda el primer cruce de 79 paradas.)
+- **Líneas**: las 72 de `api-examples/01-lines_routes.json` (actualizado 2026-10-12: incluye **Sol Bus** con 70–76), agrupadas por empresa (TAMSE, CONIFERAL, SI BUS, SOL BUS) con botones de filtro.
+- **Para regenerar el catálogo**: corré `./tools/cosechar-paradas.sh` (receta anti-408 incluida: página → `operacion` → registro `fp` → POSTs), que guarda `api-paradas/` + `paradas-todas.json`, y luego cruzá con `python3 tools/unir-barrios.py` usando `cordoba.geojson` de https://github.com/OpenDataCordoba/barrios.
 
 ## Configuración manual
 

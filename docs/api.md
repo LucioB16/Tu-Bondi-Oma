@@ -4,16 +4,27 @@ Base: `https://micronauta4.dnsalias.net`. Todo cuelga de una sesión con cookie
 `PHPSESSID` (se obtiene con **GET**, no POST); sin ella los POST devuelven
 `408` vacío.
 
-> **Hallazgo 2026-10-12**: los POST a `urbano2_cmd.php` ahora exigen el
-> parámetro `operacion` (entero de ~20 dígitos, ej. `10535084050061078439`)
-> emitido por el servidor. Sin él (o con uno inventado/ajeno) responden
-> `408` vacío aunque la sesión sea fresca y los headers sean de browser
-> real. Los `GET` (`/web/urbano/`, `vista`, `api_cmd.php`) siguen andando
-> sin `operacion`. Verificado: request de browser con `operacion` → `200`;
-> replay por curl con `operacion` ajena o aleatoria → `408`; con/sin header
-> `X-Device-FlakerParam` → `408` igual. **Falta descubrir qué endpoint
-> emite `operacion`** (no está en el HTML inicial, ni en `main.js`, ni en
-> `api_cmd.php`). Si lo encontrás en devtools, actualizá esta doc.
+> **Resuelto 2026-10-12**: `operacion` viene **embebido en el HTML** de
+> `GET /usuario/urbano.php?conf=cbaciudad` (línea ~3753,
+> `operacion:'…'` — cambia en cada carga) y se manda solo en
+> `consultacocheporruta`. Además el servidor exige registrar un
+> **fingerprint**: `fp.js` calcula SHA-256 de canvas+navigator+ pantalla,
+> lo registra con `POST ...?cmd=vista` (form `fp=…`, sin `conf`) y de ahí
+> en más cada POST lleva `X-Device-FlakerParam: <fp>`. Con sesión fresca +
+> `operacion` de su página + `fp` registrado + headers de browser
+> (`Accept`, `Origin`, `Sec-Fetch-*`, `Content-Type` sin charset),
+> `consultacocheporruta`, `lineasyrutas`, `seleccionatraza` y
+> `proximos_arribos` devuelven `200`. Un `operacion` ajeno o inventado, o
+> un `fp` no registrado, dan `408` vacío. `window.flakerParam` nunca se
+> asigna en el HTML (solo se usa): cualquier SHA-256 de 64 hex registrado
+> sirve. Receta completa y cosechador en `tools/cosechar-paradas.sh`.
+>
+> Detalle: `proximosarribos.js` (del mismo servidor) llama
+> `?cmd=proximos_arribos` con `codigo, conf, show80min, onlygps: true,
+> onlygps_array=JSON` (+ `x` / `forzar_llegada_a_parada` opcionales), sin
+> `operacion` y con un typo (`heathers` en vez de `headers`, o sea sin
+> Content-Type). `nfetch` es solo fetch+timeout; ante `408` la página hace
+> `location.reload()`.
 
 ## 0. Sesión
 
