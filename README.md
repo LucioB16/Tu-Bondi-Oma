@@ -1,17 +1,17 @@
 # Tu Bondi · Oma (widget)
 
-Widget de home-screen para [omalauncher](https://github.com/SimonSchubert/omarchy-widgets) que muestra los próximos arribos de **Tu Bondi** en Córdoba. Es la versión widget de [Tu-Bondi-Tracker](https://github.com/LucioB16/Tu-Bondi-Tracker): misma parada, mismas líneas, mismo flujo contra la API municipal, pero sin backend .NET — el widget consulta directo y vive en el teléfono.
+Widget de home-screen para [omalauncher](https://github.com/SimonSchubert/omarchy-widgets) que muestra los próximos arribos de **Tu Bondi** en Córdoba. Es la versión widget de [Tu-Bondi-Tracker](https://github.com/LucioB16/Tu-Bondi-Tracker): mismas paradas, mismas líneas, mismo flujo contra la API municipal, pero sin backend .NET — el widget consulta directo y vive en el teléfono.
 
-Por defecto: parada **A911** (AV. DUARTE QUIROS 1717-1728), líneas **40, 42 y 71**.
+Por defecto: paradas **A911** (AV. DUARTE QUIROS 1717-1728), líneas **40, 42 y 71**. Acepta **una o más paradas** separadas por coma (las de casa y trabajo, por ejemplo `A911,A45`).
 
 ## ¿Qué es este proyecto?
 
 Un widget OWL de un solo archivo (`widget.owl`, ~7 KB) que replica el tablero LED del repo original:
 
-- Fila superior: parada + reloj (se actualiza cada 30 s).
-- Fila central: próximos 2 arribos en el tile (hasta 6 en la vista completa), ordenados por ETA, con línea, destino, distancia, empresa y minutos restantes. Si hay `notificacion`, muestra fila de alerta amarilla.
+- Fila superior: parada(s) + reloj (se actualiza cada 30 s). Con varias paradas muestra `bondi ×N`.
+- Fila central: próximos 2 arribos en el tile (hasta 6 en la vista completa, mezclando todas las paradas y ordenados por ETA), con línea, parada, destino, distancia, empresa y minutos restantes. Si hay `notificacion`, muestra fila de alerta amarilla.
 - Fila inferior: “actualizado HH:mm”.
-- Vista completa (`screen`, toca el tile): los 6 arribos con detalle, avisos, reloj HH:mm:ss y configuración de parada/líneas con `Input` (persisten entre reinicios).
+- Vista completa (`screen`, toca el tile): arribos agrupados por parada con detalle, avisos, reloj HH:mm:ss y configuración de paradas/líneas con `Input` (persisten entre reinicios).
 - Sin servicio (de noche o API caída): muestra “offline / sin arribos” y botón de reintentar, igual que el manejo de errores del backend original.
 
 ## ¿Cómo funciona (de punta a punta)?
@@ -23,14 +23,14 @@ Un widget OWL de un solo archivo (`widget.owl`, ~7 KB) que replica el tablero LE
 └──────────┘              └───────────────────┘              └──────────────┘
       ▲                            │ normaliza a JSON                │
       │                            ▼                                 │
-      │                   {stop, desc, arrivals[], updated, error}     │
+      │                   {stops[], arrivals[] (+stop), updated, error}   │
       │                   filtra por lineas, ordena por ETA           │
       └────────────────── tile 3x3 + screen ─────────────────────────┘
 ```
 
-1. El `cmd` abre sesión con `GET /web/urbano/?conf=cbaciudad` (guarda `PHPSESSID` en un cookiejar temporal) y luego hace `POST /usuario/urbano2_cmd.php` con `conf=cbaciudad`, `codigo=<parada>`, `show80min=true`, `onlygps_array={}`, `cmd=proximos_arribos` — los mismos parámetros que `TuBondiClient.GetArrivalsAsync` en el repo original.
-2. `jq` normaliza `proximos_arribos` a `{line, dest, route, etaTxt, eta, dist, color, op, notif}`. `eta` se extrae igual que `TuBondiGateway.ParseEta`: “arribando/llega” → 0, si no los dígitos (`11min` → 11).
-3. El widget filtra por las líneas configuradas, ordena por `eta` y toma 6 (2 en el tile).
+1. El `cmd` abre **una** sesión con `GET /web/urbano/?conf=cbaciudad` (guarda `PHPSESSID` en un cookiejar temporal) y luego hace **un `POST /usuario/urbano2_cmd.php` por parada** con `conf=cbaciudad`, `codigo=<parada>`, `show80min=true`, `onlygps_array={}`, `cmd=proximos_arribos` — los mismos parámetros que `TuBondiClient.GetArrivalsAsync` en el repo original. Una sola sesión sirve para todas.
+2. `jq` normaliza cada `proximos_arribos` a `{line, dest, route, etaTxt, eta, dist, color, op, notif}` más `stop`, y combina todo en `{stops, arrivals, updated, error}`. `eta` se extrae igual que `TuBondiGateway.ParseEta`: “arribando/llega” → 0, si no los dígitos (`11min` → 11).
+3. El widget filtra por las líneas configuradas, ordena por `eta` y toma 6 (2 en el tile; con varias paradas cada fila indica `línea · parada`).
 4. Si el POST falla o no es JSON, el script imprime `{"error":"offline",...}` y el tile ofrece reintentar, como el `fetchLoop` de `board.js`.
 
 ## Requisitos previos
@@ -58,17 +58,19 @@ Un widget OWL de un solo archivo (`widget.owl`, ~7 KB) que replica el tablero LE
 
 ## Configuración
 
-Sin editar el archivo: abrí la vista completa (tocá el tile) y cambiá el código de parada y las líneas en los campos (se guardan con `persist`):
+Sin editar el archivo: abrí la vista completa (tocá el tile) y cambiá las paradas y las líneas en los campos (se guardan con `persist`):
 
-- Parada: `A911`
+- Paradas: `A911` — una o más, separadas por coma: las de casa y trabajo, por ejemplo `A911,A45`.
 - Líneas: `40,42,71`
 
 Equivalente a las variables del repo original (`Tracker__StopCode`, `Tracker__Lines`). El intervalo de refresco es 60 s (el original usa 25 s con caché de 12 s; en el widget se espacia para no sobrecargar la API municipal) y el reloj va cada 30 s.
 
+Para grupos independientes (casa / trabajo con líneas distintas) duplicá el archivo: `30-tu-bondi-casa.owl` y `31-tu-bondi-trabajo.owl` — cada copia guarda su propio estado.
+
 ## Uso del tablero
 
-- Tile: próximos 2 arribos + aviso + hora de actualización. Tocarlo abre la vista completa.
-- Screen: los 6 arribos con empresa, distancia y avisos; hora actual y de actualización; campos de parada/líneas; botones a Tu Bondi web y al repo original.
+- Tile: próximos 2 arribos (de todas las paradas, ordenados por ETA) + aviso + hora de actualización. Tocarlo abre la vista completa.
+- Screen: arribos agrupados por parada con empresa, distancia y avisos; hora actual y de actualización; campos de paradas/líneas; botones a Tu Bondi web y al repo original.
 - Si la API devuelve `notificacion`, se muestra como fila amarilla (igual que la fila verde intermitente del LED original).
 
 ## Pruebas
@@ -108,7 +110,7 @@ Para probar el layout con datos aunque la API esté caída, este repo trae `api-
 
 **¿Cómo agrego otra línea o parada?**
 
-- En la vista completa cambiá los campos, o editá los `state` por defecto en `widget.owl`.
+- En la vista completa cambiá los campos (paradas separadas por coma), o editá los `state` por defecto (`stopsStr`, `linesStr`) en `widget.owl`.
 
 **¿Problemas con la cookie / sesión?**
 
