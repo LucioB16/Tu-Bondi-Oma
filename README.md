@@ -2,7 +2,16 @@
 
 Widget de home-screen para [omalauncher](https://github.com/SimonSchubert/omarchy-widgets) que muestra los próximos arribos de **Tu Bondi** en Córdoba. Es la versión widget de [Tu-Bondi-Tracker](https://github.com/LucioB16/Tu-Bondi-Tracker): mismas paradas, mismas líneas, mismo flujo contra la API municipal, pero sin backend .NET — el widget consulta directo y vive en el teléfono.
 
-Por defecto: paradas **A911** (AV. DUARTE QUIROS 1717-1728), líneas **40, 42 y 71**. Acepta **una o más paradas** separadas por coma (las de casa y trabajo, por ejemplo `A911,A45`).
+Por defecto: paradas **A911** (AV. DUARTE QUIROS 1717-1728), líneas **40, 42 y 71**. Acepta **una o más paradas** y trae un **catálogo por barrio + las 74 líneas** para configurar tocando botones, sin escribir códigos.
+
+## Configuración en 30 segundos (sin escribir códigos)
+
+1. Instalá el widget (ver abajo) y **tocá el tile** para abrir la vista completa.
+2. Bajá a **configurar** → pestaña **paradas**: tocá los códigos de tu barrio (se ponen verdes y entran en "mis paradas"). Agregá los de casa y los del trabajo, por ejemplo `A911` + `CE56`.
+3. Pestaña **líneas**: tocá las que te sirven, o una empresa entera (`todas coniferal`), o dejá **todas las lineas** para ver todo lo que pasa por tus paradas.
+4. Listo: el tile muestra los 2 arribos más próximos entre todas tus paradas. Todo persiste entre reinicios.
+
+Opciones extra en la pestaña **manual**: escribir códigos a mano (`A911,A45`), duplicar el archivo para grupos independientes (`30-tu-bondi-casa.owl` + `31-tu-bondi-trabajo.owl`), y links a Tu Bondi web y al repo original.
 
 ## ¿Qué es este proyecto?
 
@@ -56,7 +65,13 @@ Un widget OWL de un solo archivo (`widget.owl`, ~7 KB) que replica el tablero LE
    ```
    Imprime los errores y la ruta del PNG del tile (y de su screen, porque tiene una). Abrilos para ver si el texto entra.
 
-## Configuración
+## Catálogo de paradas y líneas
+
+- **Paradas**: `api-examples/catalogo-semilla.json` — 79 paradas reales en 26 barrios (cruce de `seleccionatraza` de la ruta 99 de la línea 42 con los polígonos oficiales de barrios de la Municipalidad). El widget las muestra agrupadas por barrio con botones para agregar/quitar.
+- **Líneas**: las 74 de `api-examples/01-lines_routes.json`, agrupadas por empresa (TAMSE, CONIFERAL, FAM, SI BUS) con botones de filtro.
+- **Para completar el catálogo** a toda la ciudad: de día (con la API en servicio, de noche devuelve 408) corré `./tools/cosechar-paradas.sh`, que consulta `seleccionatraza` para cada ruta con una sola sesión, y luego cruzá con `python3 tools/unir-barrios.py` usando los polígonos de https://github.com/OpenDataCordoba/barrios (`cordoba.geojson`). Después regenerá el bloque `hoodCatalog` de `widget.owl` con esos datos.
+
+## Configuración manual
 
 Sin editar el archivo: abrí la vista completa (tocá el tile) y cambiá las paradas y las líneas en los campos (se guardan con `persist`):
 

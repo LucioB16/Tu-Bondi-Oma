@@ -1,0 +1,370 @@
+{
+ "EL PUEBLITO": [
+  {
+   "code": "PB01",
+   "name": "SANTA ANA Y PAINE"
+  },
+  {
+   "code": "PB09",
+   "name": "AV. SANTA ANA 5370"
+  }
+ ],
+ "INDUSTRIAL OESTE": [
+  {
+   "code": "2032",
+   "name": "AV. SANTA ANA 5596-5600"
+  },
+  {
+   "code": "2033",
+   "name": "AV. SANTA ANA 5800-5820"
+  },
+  {
+   "code": "2034",
+   "name": "STA ANA 6000"
+  }
+ ],
+ "VILLA ALBERTO": [
+  {
+   "code": "PB03",
+   "name": "ALTO ALEGRE 920"
+  },
+  {
+   "code": "PB04",
+   "name": "ALTO ALEGRE 1040"
+  }
+ ],
+ "PARQUE REPUBLICA": [
+  {
+   "code": "PB05",
+   "name": "MANUEL NAMUNCURA 5870"
+  },
+  {
+   "code": "PB06",
+   "name": "MANUEL NAMUNCURA 5559"
+  },
+  {
+   "code": "PB07",
+   "name": "PAINE 5350"
+  },
+  {
+   "code": "PB08",
+   "name": "PAINE 5245"
+  }
+ ],
+ "VILLA MARTINEZ": [
+  {
+   "code": "V403",
+   "name": "AV. SANTA ANA 5052"
+  }
+ ],
+ "LAS VIOLETAS": [
+  {
+   "code": "V430",
+   "name": "AV. SANTA ANA 4860 (Hosp. Eva"
+  }
+ ],
+ "LOS FILTROS": [
+  {
+   "code": "V424",
+   "name": "AV. SANTA ANA 4749"
+  }
+ ],
+ "ALTOS DE SANTA ANA": [
+  {
+   "code": "RQ24",
+   "name": "AV. SANTA ANA 4630"
+  },
+  {
+   "code": "FK05",
+   "name": "ARRECIFES 603"
+  }
+ ],
+ "LAS PALMAS": [
+  {
+   "code": "P116",
+   "name": "ARRECIFES 425"
+  },
+  {
+   "code": "P120",
+   "name": "ARRECIFES 355"
+  },
+  {
+   "code": "P121",
+   "name": "ARRECIFES 281"
+  },
+  {
+   "code": "P122",
+   "name": "AV. DUARTE QUIROS 4470-4485"
+  },
+  {
+   "code": "P123",
+   "name": "AV. DUARTE QUIROS 4299-4300"
+  }
+ ],
+ "SAN SALVADOR": [
+  {
+   "code": "SS09",
+   "name": "AV. DUARTE QUIROS 4078-4087"
+  }
+ ],
+ "ALTO ALBERDI": [
+  {
+   "code": "SS10",
+   "name": "AV. DUARTE QUIROS 3844-3845"
+  },
+  {
+   "code": "AA50",
+   "name": "D. QUIROS 3513"
+  },
+  {
+   "code": "AA51",
+   "name": "D. QUIROS 3309"
+  },
+  {
+   "code": "AA36",
+   "name": "D. QUIROS 3173"
+  },
+  {
+   "code": "AA38",
+   "name": "AV. DUARTE QUIROS 2921"
+  },
+  {
+   "code": "AA40",
+   "name": "AV. DUARTE QUIROS 2765"
+  },
+  {
+   "code": "AA42",
+   "name": "AV. DUARTE QUIROS 2603"
+  },
+  {
+   "code": "AA44",
+   "name": "AV. DUARTE QUIROS 2329"
+  }
+ ],
+ "ALBERDI": [
+  {
+   "code": "A910",
+   "name": "AV. DUARTE QUIROS 2168-2175"
+  },
+  {
+   "code": "AA47",
+   "name": "Duarte Quirós 1939"
+  },
+  {
+   "code": "A911",
+   "name": "AV. DUARTE QUIROS 1717-1728"
+  },
+  {
+   "code": "QS16",
+   "name": "Caseros 1051"
+  },
+  {
+   "code": "PC10",
+   "name": "Rodriguez Peña 125"
+  }
+ ],
+ "QUINTA SANTA ANA": [
+  {
+   "code": "QS14",
+   "name": "Duarte Quirós 1541"
+  }
+ ],
+ "CENTRO": [
+  {
+   "code": "CE56",
+   "name": "COLON 545/33"
+  },
+  {
+   "code": "CE52",
+   "name": "COLON 151/53"
+  },
+  {
+   "code": "CE53",
+   "name": "Av Olmos 20-34"
+  },
+  {
+   "code": "CE89",
+   "name": "Av. Maipu 444"
+  },
+  {
+   "code": "C948",
+   "name": "Av. Maipu 770"
+  }
+ ],
+ "GENERAL PUEYRREDON": [
+  {
+   "code": "PU06",
+   "name": "FRAY MAMERTO ESQUIU 1194"
+  }
+ ],
+ "ALTA CORDOBA": [
+  {
+   "code": "AC37",
+   "name": "AV. JUAN B. JUSTO 2260"
+  },
+  {
+   "code": "AC49",
+   "name": "AV. JUAN B. JUSTO 3672"
+  },
+  {
+   "code": "AC51",
+   "name": "J.B.JUSTO 3860"
+  },
+  {
+   "code": "AY05",
+   "name": "J. B. JUSTO 4096"
+  }
+ ],
+ "GENERAL BUSTOS": [
+  {
+   "code": "AC38",
+   "name": "J.B.JUSTO 2378"
+  },
+  {
+   "code": "AC39",
+   "name": "AV. JUAN B. JUSTO 2632"
+  },
+  {
+   "code": "AC40",
+   "name": "J.B.JUSTO 2948"
+  },
+  {
+   "code": "AC41",
+   "name": "AV. JUAN B. JUSTO 3258"
+  },
+  {
+   "code": "AC74",
+   "name": "AV. JUAN B. JUSTO 3453-3468"
+  }
+ ],
+ "VILLA AZALAIZ OESTE": [
+  {
+   "code": "CA04",
+   "name": "AV. JUAN B. JUSTO 4350"
+  },
+  {
+   "code": "CA05",
+   "name": "RICARDO LEVENE 14"
+  }
+ ],
+ "MARCELO T. DE ALVEAR": [
+  {
+   "code": "CA06",
+   "name": "RICARDO LEVENE 200"
+  },
+  {
+   "code": "CA08",
+   "name": "MIGUEL CANE 3000"
+  },
+  {
+   "code": "MT04",
+   "name": "MIGUEL CANE 3280"
+  }
+ ],
+ "LOS GIGANTES": [
+  {
+   "code": "GI02",
+   "name": "MIGUEL CANE 3500-3522"
+  },
+  {
+   "code": "GI03",
+   "name": "MIGUEL CANE 3648"
+  },
+  {
+   "code": "GI05",
+   "name": "MIGUEL CANE 3816"
+  },
+  {
+   "code": "GI10",
+   "name": "CONRADO NALE ROXLO 594"
+  },
+  {
+   "code": "GI11",
+   "name": "CONRADO NALE ROXLO 788"
+  },
+  {
+   "code": "GI12",
+   "name": "CONRADO NALE ROXLO 990"
+  },
+  {
+   "code": "GI13",
+   "name": "JULIO ARBOLEDA 3800"
+  },
+  {
+   "code": "GI14",
+   "name": "JULIO ARBOLEDA 3613"
+  },
+  {
+   "code": "GI15",
+   "name": "JULIO ARBOLEDA 3505"
+  }
+ ],
+ "CENTRO AMERICA": [
+  {
+   "code": "CA10",
+   "name": "CARLOS GIMENEZ 90"
+  },
+  {
+   "code": "CA12",
+   "name": "CARLOS GIMENEZ 192"
+  }
+ ],
+ "LOS ALAMOS": [
+  {
+   "code": "CA15",
+   "name": "Av. Parravicini 3548"
+  },
+  {
+   "code": "CA16",
+   "name": "AV. FLORENCIO PARRAVICINI 3696"
+  },
+  {
+   "code": "VZ07",
+   "name": "Av. Parravicini 3900"
+  }
+ ],
+ "GENERAL MOSCONI": [
+  {
+   "code": "VZ03",
+   "name": "AV. AGUSTIN RAVELLO 1200"
+  },
+  {
+   "code": "VZ06",
+   "name": "AV. AGUSTIN RAVELLO 1400"
+  },
+  {
+   "code": "LE43",
+   "name": "AV. RANCAGUA 3725"
+  }
+ ],
+ "PATRICIOS OESTE": [
+  {
+   "code": "TR60",
+   "name": "FRANCISCO DE ALARCON 1865"
+  },
+  {
+   "code": "TR59",
+   "name": "FRANCISCO DE ALARCON 1975"
+  },
+  {
+   "code": "TR70",
+   "name": "FRANCISCO DE  ALARCON 2182"
+  }
+ ],
+ "PATRICIOS NORTE": [
+  {
+   "code": "TR68",
+   "name": "FRANCISCO DE ALARCON 2359"
+  }
+ ],
+ "PATRICIOS ESTE": [
+  {
+   "code": "TR63",
+   "name": "Julio de Vedia 3792"
+  },
+  {
+   "code": "TR19",
+   "name": "Jose Maria Lahora 2426"
+  }
+ ]
+}

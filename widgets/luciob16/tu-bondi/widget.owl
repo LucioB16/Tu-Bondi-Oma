@@ -1,0 +1,298 @@
+widget "tu bondi" {
+  page: 1
+  order: 3
+  size: 3x3
+  minSize: 3x2
+  meta { description: "Proximos arribos de Tu Bondi en Cordoba para una o mas paradas. Catalogo por barrio y las 74 lineas para configurar sin escribir codigos."; version: "1.2"; license: "GPL-3.0-only"; category: "home"; owl: 5 }
+
+  requires { pacman: ["curl", "jq"] }
+
+  state stopsStr = "A911" persist
+  state linesStr = "40,42,71" persist
+  state tab = "paradas"
+
+  source now = clock every 30s
+  source board = cmd("""
+cj=$(mktemp)
+curl -s -c $cj -b $cj -A "TuBondi-Tracker-Widget/1.0" "https://micronauta4.dnsalias.net/web/urbano/?conf=cbaciudad" -o /dev/null --max-time 10 || true
+tmp=$(mktemp)
+live=0
+stops="${stopsStr}"
+oldifs=$IFS
+IFS=,
+set -- $stops
+IFS=$oldifs
+for code in "$@"; do
+  code=$(printf '%s' "$code" | tr -d '[:space:]')
+  [ -z "$code" ] && continue
+  resp=$(curl -s -c $cj -b $cj -A "TuBondi-Tracker-Widget/1.0" -H "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" -H "X-Requested-With: XMLHttpRequest" -H "Referer: https://micronauta4.dnsalias.net/web/urbano/?conf=cbaciudad" --data-urlencode "conf=cbaciudad" --data-urlencode "codigo=$code" --data-urlencode "show80min=true" --data-urlencode "onlygps_array={}" --data-urlencode "cmd=proximos_arribos" "https://micronauta4.dnsalias.net/usuario/urbano2_cmd.php" --max-time 15 || true)
+  if [ -n "$resp" ]; then
+    part=$(printf '%s' "$resp" | jq -c --arg code "$code" '
+      def parse_eta:
+        if . == null or . == "" then null
+        elif ascii_downcase | test("arrib|llega") then 0
+        else (match("[0-9]+").string | tonumber? // null) end;
+      {
+        code: $code,
+        desc: (.parada.descripcion // ""),
+        arrivals: ((.proximos_arribos // []) | map({
+          stop: $code,
+          line: (.linea // "?"),
+          dest: (.ruta_descripcion // .ruta // ""),
+          route: (.ruta // ""),
+          etaTxt: (.demora // .proximo // ""),
+          eta: ((.demora // .proximo // "") | parse_eta),
+          dist: .distancia,
+          color: (.color // "#ffb300"),
+          op: (.cliente_nombre // ""),
+          notif: (.notificacion // "")
+        }))
+      }' 2>/dev/null || true)
+    if [ -n "$part" ]; then
+      printf '%s\n' "$part" >> $tmp
+      live=1
+      continue
+    fi
+  fi
+  printf '{"code":"%s","desc":"","arrivals":[]}\n' "$code" >> $tmp
+done
+rm -f $cj
+if [ "$live" = 1 ]; then
+  jq -c -s '{stops: map({code: .code, desc: .desc}), arrivals: [.[].arrivals[]], updated: (now | floor), error: null}' $tmp 2>/dev/null || printf '{"stops":[],"arrivals":[],"updated":%s,"error":"parse"}\n' $(date +%s)
+else
+  codes=$(printf '%s' "${stopsStr}" | jq -R -c 'split(",") | map(gsub("[\\s]";"") | ascii_upcase) | map(select(. != "")) | map({code: ., desc: "", arrivals: []})' 2>/dev/null || echo "")
+  if [ -z "$codes" ] || [ "$codes" = "null" ]; then
+    printf '{"stops":[],"arrivals":[],"updated":%s,"error":"offline"}\n' $(date +%s)
+  else
+    printf '{"stops":%s,"arrivals":[],"updated":%s,"error":"offline"}\n' "$codes" $(date +%s)
+  fi
+fi
+rm -f $tmp
+  """) every 60s json timeout 25s status
+
+  let data = board.ok ? board.out : null
+  let stops = data.stops ?? []
+  let multi = len(stops) > 1
+  let firstCode = trim(split(stopsStr ?? "", ",")[0] ?? "")
+  let curStops = split(stopsStr ?? "", ",").map(x => trim(upper(x))).filter(x => x != "")
+  let curLines = split(linesStr ?? "", ",").map(x => trim(x)).filter(x => x != "")
+  let all = data.arrivals ?? []
+  let arrivals = all.filter(a => len(curLines) == 0 || contains(curLines, a.line)).sortBy(a => a.eta ?? 9999).take(6)
+  let notifs = arrivals.filter(a => trim(a.notif ?? "") != "").take(2)
+  let updated = data.updated
+  let err = board == null ? null : !board.ok ? "offline (codigo ${board.code})" : data.error
+
+  let hoodCatalog = [
+    {hood: "ALBERDI", stops: [{code: "A910", name: "AV. DUARTE QUIROS 2168-2175"}, {code: "AA47", name: "Duarte Quirós 1939"}, {code: "A911", name: "AV. DUARTE QUIROS 1717-1728"}, {code: "QS16", name: "Caseros 1051"}, {code: "PC10", name: "Rodriguez Peña 125"}]},
+    {hood: "ALTA CORDOBA", stops: [{code: "AC37", name: "AV. JUAN B. JUSTO 2260"}, {code: "AC49", name: "AV. JUAN B. JUSTO 3672"}, {code: "AC51", name: "J.B.JUSTO 3860"}, {code: "AY05", name: "J. B. JUSTO 4096"}]},
+    {hood: "ALTO ALBERDI", stops: [{code: "SS10", name: "AV. DUARTE QUIROS 3844-3845"}, {code: "AA50", name: "D. QUIROS 3513"}, {code: "AA51", name: "D. QUIROS 3309"}, {code: "AA36", name: "D. QUIROS 3173"}, {code: "AA38", name: "AV. DUARTE QUIROS 2921"}, {code: "AA40", name: "AV. DUARTE QUIROS 2765"}, {code: "AA42", name: "AV. DUARTE QUIROS 2603"}, {code: "AA44", name: "AV. DUARTE QUIROS 2329"}]},
+    {hood: "ALTOS DE SANTA ANA", stops: [{code: "RQ24", name: "AV. SANTA ANA 4630"}, {code: "FK05", name: "ARRECIFES 603"}]},
+    {hood: "CENTRO", stops: [{code: "CE56", name: "COLON 545/33"}, {code: "CE52", name: "COLON 151/53"}, {code: "CE53", name: "Av Olmos 20-34"}, {code: "CE89", name: "Av. Maipu 444"}, {code: "C948", name: "Av. Maipu 770"}]},
+    {hood: "CENTRO AMERICA", stops: [{code: "CA10", name: "CARLOS GIMENEZ 90"}, {code: "CA12", name: "CARLOS GIMENEZ 192"}]},
+    {hood: "EL PUEBLITO", stops: [{code: "PB01", name: "SANTA ANA Y PAINE"}, {code: "PB09", name: "AV. SANTA ANA 5370"}]},
+    {hood: "GENERAL BUSTOS", stops: [{code: "AC38", name: "J.B.JUSTO 2378"}, {code: "AC39", name: "AV. JUAN B. JUSTO 2632"}, {code: "AC40", name: "J.B.JUSTO 2948"}, {code: "AC41", name: "AV. JUAN B. JUSTO 3258"}, {code: "AC74", name: "AV. JUAN B. JUSTO 3453-3468"}]},
+    {hood: "GENERAL MOSCONI", stops: [{code: "VZ03", name: "AV. AGUSTIN RAVELLO 1200"}, {code: "VZ06", name: "AV. AGUSTIN RAVELLO 1400"}, {code: "LE43", name: "AV. RANCAGUA 3725"}]},
+    {hood: "GENERAL PUEYRREDON", stops: [{code: "PU06", name: "FRAY MAMERTO ESQUIU 1194"}]},
+    {hood: "INDUSTRIAL OESTE", stops: [{code: "2032", name: "AV. SANTA ANA 5596-5600"}, {code: "2033", name: "AV. SANTA ANA 5800-5820"}, {code: "2034", name: "STA ANA 6000"}]},
+    {hood: "LAS PALMAS", stops: [{code: "P116", name: "ARRECIFES 425"}, {code: "P120", name: "ARRECIFES 355"}, {code: "P121", name: "ARRECIFES 281"}, {code: "P122", name: "AV. DUARTE QUIROS 4470-4485"}, {code: "P123", name: "AV. DUARTE QUIROS 4299-4300"}]},
+    {hood: "LAS VIOLETAS", stops: [{code: "V430", name: "AV. SANTA ANA 4860"}]},
+    {hood: "LOS ALAMOS", stops: [{code: "CA15", name: "Av. Parravicini 3548"}, {code: "CA16", name: "AV. FLORENCIO PARRAVICINI 3696"}, {code: "VZ07", name: "Av. Parravicini 3900"}]},
+    {hood: "LOS FILTROS", stops: [{code: "V424", name: "AV. SANTA ANA 4749"}]},
+    {hood: "LOS GIGANTES", stops: [{code: "GI02", name: "MIGUEL CANE 3500-3522"}, {code: "GI03", name: "MIGUEL CANE 3648"}, {code: "GI05", name: "MIGUEL CANE 3816"}, {code: "GI10", name: "CONRADO NALE ROXLO 594"}, {code: "GI11", name: "CONRADO NALE ROXLO 788"}, {code: "GI12", name: "CONRADO NALE ROXLO 990"}, {code: "GI13", name: "JULIO ARBOLEDA 3800"}, {code: "GI14", name: "JULIO ARBOLEDA 3613"}, {code: "GI15", name: "JULIO ARBOLEDA 3505"}]},
+    {hood: "MARCELO T. DE ALVEAR", stops: [{code: "CA06", name: "RICARDO LEVENE 200"}, {code: "CA08", name: "MIGUEL CANE 3000"}, {code: "MT04", name: "MIGUEL CANE 3280"}]},
+    {hood: "PARQUE REPUBLICA", stops: [{code: "PB05", name: "MANUEL NAMUNCURA 5870"}, {code: "PB06", name: "MANUEL NAMUNCURA 5559"}, {code: "PB07", name: "PAINE 5350"}, {code: "PB08", name: "PAINE 5245"}]},
+    {hood: "PATRICIOS ESTE", stops: [{code: "TR63", name: "Julio de Vedia 3792"}, {code: "TR19", name: "Jose Maria Lahora 2426"}]},
+    {hood: "PATRICIOS NORTE", stops: [{code: "TR68", name: "FRANCISCO DE ALARCON 2359"}]},
+    {hood: "PATRICIOS OESTE", stops: [{code: "TR60", name: "FRANCISCO DE ALARCON 1865"}, {code: "TR59", name: "FRANCISCO DE ALARCON 1975"}, {code: "TR70", name: "FRANCISCO DE ALARCON 2182"}]},
+    {hood: "QUINTA SANTA ANA", stops: [{code: "QS14", name: "Duarte Quirós 1541"}]},
+    {hood: "SAN SALVADOR", stops: [{code: "SS09", name: "AV. DUARTE QUIROS 4078-4087"}]},
+    {hood: "VILLA ALBERTO", stops: [{code: "PB03", name: "ALTO ALEGRE 920"}, {code: "PB04", name: "ALTO ALEGRE 1040"}]},
+    {hood: "VILLA AZALAIZ OESTE", stops: [{code: "CA04", name: "AV. JUAN B. JUSTO 4350"}, {code: "CA05", name: "RICARDO LEVENE 14"}]},
+    {hood: "VILLA MARTINEZ", stops: [{code: "V403", name: "AV. SANTA ANA 5052"}]},
+  ]
+  let lineGroups = [
+    {op: "TAMSE", lines: ["A", "A1", "B", "B1", "C", "C1", "C2", "AEROBUS"]},
+    {op: "CONIFERAL", lines: ["10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "40", "41", "42", "43", "44", "45", "60", "61", "62", "63", "64", "65", "66", "67", "68", "B60"]},
+    {op: "FAM", lines: ["20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "B26", "50", "51", "52", "53", "54", "70", "71", "72", "73", "74", "75", "76", "600", "601", "Quebrachal"]},
+    {op: "SI BUS", lines: ["30", "31", "32", "33", "34", "35", "36", "B80", "80", "81", "82", "83", "84", "85"]},
+  ]
+
+  onTap: screen()
+
+  component ArrivalRow(a, showStop) {
+    Column {
+      gap: 0
+      Row {
+        gap: 6
+        align: center
+        Box { width: 10; height: 10; background: a.color ?? accent }
+        Text { text: showStop ? "${a.line} · ${a.stop}" : a.line; bold: true; weight: 1; maxLines: 1 }
+        Text { text: a.etaTxt; bold: true; width: 62; align: end; maxLines: 1; color: (a.eta ?? 99) <= 5 ? green : (a.eta ?? 99) <= 15 ? yellow : foreground }
+      }
+      Text { text: a.dest; style: small; maxLines: 1 }
+      Text { text: a.dist == null ? a.op : "${fixed(a.dist, 1)} km · ${a.op}"; style: label; color: muted; maxLines: 1 }
+    }
+  }
+
+  component TabBtn(label, name) {
+    Button { text: label; color: tab == name ? accent : muted; onTap: tab = name }
+  }
+
+  Column {
+    gap: 4
+    Row {
+      gap: 6
+      align: center
+      Text { text: multi ? "bondi ×${len(stops)}" : "bondi ${firstCode}"; style: muted; weight: 1; maxLines: 1 }
+      Text { text: fmtTime(now, "HH:mm"); style: small; color: muted; width: 44; align: end }
+    }
+    if board == null {
+      Text { text: "cargando…"; style: small; color: muted }
+    } else if err != null || len(arrivals) == 0 {
+      if multi {
+        Text { text: stopsStr; style: label; color: muted; maxLines: 1 }
+      } else if (stops[0].desc ?? "") != "" {
+        Text { text: lower(stops[0].desc); style: label; color: muted; maxLines: 1 }
+      }
+      Text { text: err ?? "sin arribos ahora"; style: small; color: err != null ? red : muted; maxLines: 2 }
+      Text { text: updated == null ? "revisa tu conexion" : "actualizado ${fmtTime(updated, "HH:mm")}"; style: label; color: muted }
+      Row {
+        justify: end
+        Button { text: "reintentar"; color: muted; onTap: refresh() }
+      }
+    } else {
+      for a in arrivals.take(2) key "${a.stop}-${a.line}-${a.route}-${a.etaTxt}" {
+        ArrivalRow { a: a; showStop: multi }
+      }
+      if len(notifs) > 0 {
+        Text { text: "⚠ ${trim(notifs[0].notif)}"; style: label; color: yellow; maxLines: 1 }
+      }
+      Spacer { weight: 1 }
+      Text { text: "actualizado ${fmtTime(updated, "HH:mm")}"; style: label; color: muted; maxLines: 1 }
+    }
+  }
+
+  screen {
+    title: multi ? "tu bondi ×${len(stops)}" : "tu bondi ${firstCode}"
+    Column {
+      scroll: true
+      gap: 10
+      Row {
+        gap: 6
+        align: center
+        Text { text: fmtTime(now, "HH:mm:ss"); fontSize: 28; bold: true; font: mono; width: 120 }
+        Text { text: updated == null ? "sin datos" : "actualizado ${fmtTime(updated, "HH:mm:ss")}"; style: small; color: muted; weight: 1 }
+        Button { text: "↻"; color: muted; onTap: refresh() }
+      }
+      if board == null {
+        Text { text: "cargando arribos…"; style: body; color: muted }
+      } else if err != null {
+        Text { text: "${err}: no se pudo consultar Tu Bondi (micronauta4.dnsalias.net). Puede ser de noche sin servicio o la sesion PHPSESSID caduco."; style: body; color: red }
+        Text { text: "paradas: ${stopsStr}"; style: small; color: muted }
+        Button { text: "reintentar ahora"; onTap: refresh() }
+      } else if len(arrivals) == 0 {
+        Text { text: "sin arribos para ${linesStr} ahora mismo."; style: body; color: muted }
+        Text { text: "paradas: ${stopsStr}"; style: small; color: muted }
+      } else {
+        for s in stops key s.code {
+          let sa = arrivals.filter(a => a.stop == s.code)
+          Column {
+            gap: 4
+            Text { text: s.desc == "" ? "parada ${s.code}" : lower(s.desc); style: label; color: accent; maxLines: 2 }
+            Text { text: "parada ${s.code}"; style: small; color: muted }
+            if len(sa) == 0 {
+              Text { text: "sin arribos para ${linesStr}"; style: small; color: muted }
+            } else {
+              for a in sa key "${a.line}-${a.route}-${a.etaTxt}" {
+                Column {
+                  gap: 2
+                  padding: [10, 8]
+                  border: 1
+                  borderColor: alpha(muted, 0.3)
+                  ArrivalRow { a: a; showStop: false }
+                  if trim(a.notif ?? "") != "" {
+                    Text { text: "⚠ ${trim(a.notif)}"; style: label; color: yellow; maxLines: 3 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      if len(notifs) > 0 {
+        Text { text: "avisos de la linea"; style: label; color: accent }
+        for n in notifs key "${n.stop}-${n.line}-${n.etaTxt}" {
+          Text { text: "[${n.line} · ${n.stop}] ${trim(n.notif)}"; style: small; color: yellow; maxLines: 4 }
+        }
+      }
+      Text { text: "configurar"; style: label; color: accent }
+      Row {
+        gap: 6
+        TabBtn { label: "paradas"; name: "paradas" }
+        TabBtn { label: "lineas"; name: "lineas" }
+        TabBtn { label: "manual"; name: "manual" }
+      }
+      if tab == "paradas" {
+        Text { text: "toca una parada para agregarla a tu seguimiento:"; style: small; color: muted }
+        if len(curStops) > 0 {
+          Text { text: "mis paradas (toca ✕ para quitar):"; style: label; color: accent }
+          Flow {
+            gap: 6
+            for c in curStops key c {
+              Button { text: "${c} ✕"; color: green; onTap: stopsStr = join(curStops.filter(x => x != c), ",") }
+            }
+          }
+          Row {
+            justify: end
+            Button { text: "limpiar"; color: muted; onTap: stopsStr = "" }
+          }
+        }
+        Text { text: "catalogo inicial: corredor oeste y norte (79 paradas en 26 barrios). Se amplia al resto de la ciudad."; style: small; color: muted }
+        for h in hoodCatalog key h.hood {
+          Text { text: lower(h.hood); style: label; color: accent }
+          Flow {
+            gap: 6
+            for s in h.stops key s.code {
+              Button { text: s.code; color: contains(curStops, s.code) ? green : muted; onTap: stopsStr = contains(curStops, s.code) ? stopsStr : (stopsStr == "" ? s.code : stopsStr + "," + s.code) }
+            }
+          }
+          Text { text: join(h.stops.map(s => "${s.code} ${s.name}"), " · "); style: label; color: muted; maxLines: 4 }
+        }
+      } else if tab == "lineas" {
+        Text { text: "toca una linea para sumar o quitar del filtro:"; style: small; color: muted }
+        Text { text: curLines == [] ? "viendo TODAS las lineas" : "filtro: ${linesStr}"; style: small; color: curLines == [] ? green : muted }
+        Row {
+          justify: end
+          Button { text: "todas las lineas"; color: curLines == [] ? green : muted; onTap: linesStr = "" }
+        }
+        for g in lineGroups key g.op {
+          Row {
+            gap: 6
+            align: center
+            Text { text: lower(g.op); style: label; color: accent; weight: 1 }
+            Button { text: "todas ${lower(g.op)}"; color: muted; onTap: linesStr = join(g.lines, ",") }
+          }
+          Flow {
+            gap: 6
+            for l in g.lines key l {
+              Button { text: l; color: contains(curLines, l) ? green : muted; onTap: linesStr = contains(curLines, l) ? join(curLines.filter(x => x != l), ",") : (linesStr == "" ? l : linesStr + "," + l) }
+            }
+          }
+        }
+      } else {
+        Text { text: "paradas y lineas (texto):"; style: label; color: accent }
+        Input { text: stopsStr; placeholder: "paradas (A911,A45)"; onSubmit: stopsStr = join(split(value ?? "", ",").map(s => trim(upper(s))).filter(s => s != ""), ",") }
+        Input { text: linesStr; placeholder: "lineas (40,42,71)"; onSubmit: linesStr = join(split(value ?? "", ",").map(s => trim(s)).filter(s => s != ""), ",") }
+        Text { text: "para grupos independientes (casa / trabajo) duplica el archivo: 30-tu-bondi-casa.owl y 31-tu-bondi-trabajo.owl, cada uno con su estado."; style: small; color: muted }
+        Row {
+          justify: end
+          Button { text: "abrir tu bondi ↗"; color: muted; onTap: url("https://micronauta4.dnsalias.net/web/urbano/?conf=cbaciudad") }
+        }
+        Row {
+          justify: end
+          Button { text: "ver repo original ↗"; color: muted; onTap: url("https://github.com/LucioB16/Tu-Bondi-Tracker") }
+        }
+      }
+    }
+  }
+}
