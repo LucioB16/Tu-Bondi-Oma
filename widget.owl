@@ -1,0 +1,169 @@
+widget "tu bondi" {
+  page: 1
+  order: 3
+  size: 3x3
+  minSize: 3x2
+  meta { description: "Proximos arribos de Tu Bondi en Cordoba para tu parada (por defecto A911, lineas 40/42/71). Toca para ver todo, notificaciones y cambiar parada."; version: "1.0"; license: "GPL-3.0-only"; category: "home"; owl: 5 }
+
+  requires { pacman: ["curl", "jq"] }
+
+  state stopCode = "A911" persist
+  state linesStr = "40,42,71" persist
+
+  source now = clock every 30s
+  source board = cmd("""
+cj=$(mktemp)
+curl -s -c $cj -b $cj -A "TuBondi-Tracker-Widget/1.0" "https://micronauta4.dnsalias.net/web/urbano/?conf=cbaciudad" -o /dev/null --max-time 10 || true
+resp=$(curl -s -c $cj -b $cj -A "TuBondi-Tracker-Widget/1.0" -H "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" -H "X-Requested-With: XMLHttpRequest" -H "Referer: https://micronauta4.dnsalias.net/web/urbano/?conf=cbaciudad" --data-urlencode "conf=cbaciudad" --data-urlencode "codigo=${stopCode}" --data-urlencode "show80min=true" --data-urlencode "onlygps_array={}" --data-urlencode "cmd=proximos_arribos" "https://micronauta4.dnsalias.net/usuario/urbano2_cmd.php" --max-time 15 || true)
+rm -f $cj
+if [ -z "$resp" ]; then
+  printf '{"stop":"${stopCode}","desc":"","arrivals":[],"updated":%s,"error":"offline"}\n' $(date +%s)
+  exit 0
+fi
+printf '%s' "$resp" | jq -c --arg stop "${stopCode}" '
+  def parse_eta:
+    if . == null or . == "" then null
+    elif ascii_downcase | test("arrib|llega") then 0
+    else (match("[0-9]+").string | tonumber? // null) end;
+  {
+    stop: $stop,
+    desc: (.parada.descripcion // ""),
+    arrivals: ((.proximos_arribos // []) | map({
+      line: (.linea // "?"),
+      dest: (.ruta_descripcion // .ruta // ""),
+      route: (.ruta // ""),
+      etaTxt: (.demora // .proximo // ""),
+      eta: ((.demora // .proximo // "") | parse_eta),
+      dist: .distancia,
+      color: (.color // "#ffb300"),
+      op: (.cliente_nombre // ""),
+      notif: (.notificacion // "")
+    })),
+    updated: (now | floor),
+    error: null
+  }' 2>/dev/null || printf '{"stop":"${stopCode}","desc":"","arrivals":[],"updated":%s,"error":"parse"}\n' $(date +%s)
+  """) every 60s json timeout 25s status
+
+  let data = board.ok ? board.out : null
+  let linesList = split(linesStr ?? "", ",").map(s => trim(s)).filter(s => s != "")
+  let all = data.arrivals ?? []
+  let arrivals = all.filter(a => len(linesList) == 0 || contains(linesList, a.line)).sortBy(a => a.eta ?? 9999).take(6)
+  let notifs = arrivals.filter(a => trim(a.notif ?? "") != "").take(2)
+  let updated = data.updated
+  let err = board == null ? null : !board.ok ? "offline (codigo ${board.code})" : data.error
+  let desc = data.desc ?? ""
+
+  onTap: screen()
+
+  component ArrivalRow(a) {
+    Column {
+      gap: 0
+      Row {
+        gap: 6
+        align: center
+        Box { width: 10; height: 10; background: a.color ?? accent }
+        Text { text: a.line; bold: true; weight: 1; maxLines: 1 }
+        Text { text: a.etaTxt; bold: true; width: 62; align: end; maxLines: 1; color: (a.eta ?? 99) <= 5 ? green : (a.eta ?? 99) <= 15 ? yellow : foreground }
+      }
+      Text { text: a.dest; style: small; maxLines: 1 }
+      Text { text: a.dist == null ? a.op : "${fixed(a.dist, 1)} km · ${a.op}"; style: label; color: muted; maxLines: 1 }
+    }
+  }
+
+  Column {
+    gap: 4
+    Row {
+      gap: 6
+      align: center
+      Text { text: "bondi ${stopCode}"; style: muted; weight: 1; maxLines: 1 }
+      Text { text: fmtTime(now, "HH:mm"); style: small; color: muted; width: 44; align: end }
+    }
+    if desc != "" {
+      Text { text: lower(desc); style: label; color: muted; maxLines: 1 }
+    }
+    if board == null {
+      Text { text: "cargando…"; style: small; color: muted }
+    } else if err != null || len(arrivals) == 0 {
+      Text { text: err ?? "sin arribos ahora"; style: small; color: err != null ? red : muted; maxLines: 2 }
+      Text { text: updated == null ? "revisa tu conexion" : "actualizado ${fmtTime(updated, "HH:mm")}"; style: label; color: muted }
+      Row {
+        justify: end
+        Button { text: "reintentar"; color: muted; onTap: refresh() }
+      }
+    } else {
+      for a in arrivals.take(2) key "${a.line}-${a.route}-${a.etaTxt}" {
+        ArrivalRow { a: a }
+      }
+      if len(notifs) > 0 {
+        Text { text: "⚠ ${trim(notifs[0].notif)}"; style: label; color: yellow; maxLines: 1 }
+      }
+      Spacer { weight: 1 }
+      Text { text: "actualizado ${fmtTime(updated, "HH:mm")}"; style: label; color: muted; maxLines: 1 }
+    }
+  }
+
+  screen {
+    title: "tu bondi ${stopCode}"
+    Column {
+      scroll: true
+      gap: 10
+      Row {
+        gap: 8
+        align: center
+        Column {
+          gap: 0
+          weight: 1
+          Text { text: desc == "" ? "parada ${stopCode}" : lower(desc); style: title; maxLines: 2 }
+          Text { text: "parada ${stopCode} · lineas ${linesStr}"; style: small; color: muted; maxLines: 1 }
+        }
+        Button { text: "↻"; color: muted; onTap: refresh() }
+      }
+      Row {
+        gap: 6
+        align: center
+        Text { text: fmtTime(now, "HH:mm:ss"); fontSize: 28; bold: true; font: mono; width: 120 }
+        Text { text: updated == null ? "sin datos" : "actualizado ${fmtTime(updated, "HH:mm:ss")}"; style: small; color: muted; weight: 1 }
+      }
+      if board == null {
+        Text { text: "cargando arribos…"; style: body; color: muted }
+      } else if err != null {
+        Text { text: "${err}: no se pudo consultar Tu Bondi (micronauta4.dnsalias.net). Puede ser de noche sin servicio o la sesion PHPSESSID caduco."; style: body; color: red }
+        Button { text: "reintentar ahora"; onTap: refresh() }
+      } else if len(arrivals) == 0 {
+        Text { text: "sin arribos para ${linesStr} ahora mismo."; style: body; color: muted }
+      } else {
+        Text { text: "proximos arribos"; style: label; color: accent }
+        for a in arrivals key "${a.line}-${a.route}-${a.etaTxt}" {
+          Column {
+            gap: 2
+            padding: [10, 8]
+            border: 1
+            borderColor: alpha(muted, 0.3)
+            ArrivalRow { a: a }
+            if trim(a.notif ?? "") != "" {
+              Text { text: "⚠ ${trim(a.notif)}"; style: label; color: yellow; maxLines: 3 }
+            }
+          }
+        }
+      }
+      if len(notifs) > 0 {
+        Text { text: "avisos de la linea"; style: label; color: accent }
+        for n in notifs key "${n.line}-${n.etaTxt}" {
+          Text { text: "[${n.line}] ${trim(n.notif)}"; style: small; color: yellow; maxLines: 4 }
+        }
+      }
+      Text { text: "parada y lineas"; style: label; color: accent }
+      Input { text: stopCode; placeholder: "codigo de parada (A911)"; onSubmit: stopCode = trim(upper(value)) }
+      Input { text: linesStr; placeholder: "lineas (40,42,71)"; onSubmit: linesStr = replace(trim(value), " ", "") }
+      Text { text: "igual que tu repo Tu-Bondi-Tracker: consulta proximos_arribos con sesion PHPSESSID, filtra por lineas y ordena por ETA."; style: small; color: muted }
+      Row {
+        justify: end
+        Button { text: "abrir tu bondi ↗"; color: muted; onTap: url("https://micronauta4.dnsalias.net/web/urbano/?conf=cbaciudad") }
+      }
+      Row {
+        justify: end
+        Button { text: "ver repo original ↗"; color: muted; onTap: url("https://github.com/LucioB16/Tu-Bondi-Tracker") }
+      }
+    }
+  }
+}
