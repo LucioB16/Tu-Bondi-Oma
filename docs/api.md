@@ -1,9 +1,19 @@
 # Cadena de la API Tu Bondi (`cbaciudad`)
 
 Base: `https://micronauta4.dnsalias.net`. Todo cuelga de una sesión con cookie
-`PHPSESSID`; sin ella los POST devuelven `408` vacío. De noche (sin servicio,
-verificado ~22:30–00:30 ART) casi todos los POST devuelven `408` aunque la
-sesión abra bien (`GET` → `200`).
+`PHPSESSID` (se obtiene con **GET**, no POST); sin ella los POST devuelven
+`408` vacío.
+
+> **Hallazgo 2026-10-12**: los POST a `urbano2_cmd.php` ahora exigen el
+> parámetro `operacion` (entero de ~20 dígitos, ej. `10535084050061078439`)
+> emitido por el servidor. Sin él (o con uno inventado/ajeno) responden
+> `408` vacío aunque la sesión sea fresca y los headers sean de browser
+> real. Los `GET` (`/web/urbano/`, `vista`, `api_cmd.php`) siguen andando
+> sin `operacion`. Verificado: request de browser con `operacion` → `200`;
+> replay por curl con `operacion` ajena o aleatoria → `408`; con/sin header
+> `X-Device-FlakerParam` → `408` igual. **Falta descubrir qué endpoint
+> emite `operacion`** (no está en el HTML inicial, ni en `main.js`, ni en
+> `api_cmd.php`). Si lo encontrás en devtools, actualizá esta doc.
 
 ## 0. Sesión
 
