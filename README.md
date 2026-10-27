@@ -1,54 +1,28 @@
-# Tu Bondi · Oma (widget)
+# Tu Bondi · Oma
 
-Widget de home-screen para [omalauncher](https://github.com/SimonSchubert/omarchy-widgets) que muestra los próximos arribos de **Tu Bondi** en Córdoba. Es la versión widget de [Tu-Bondi-Tracker](https://github.com/LucioB16/Tu-Bondi-Tracker): mismas paradas, mismas líneas, mismo flujo contra la API municipal, pero sin backend .NET — el widget consulta directo y vive en el teléfono.
+**Los próximos colectivos de Córdoba, directamente en tu pantalla de inicio.**
 
-Por defecto: paradas **A911** (AV. DUARTE QUIROS 1717-1728), líneas **40, 42 y 71**. Acepta **una o más paradas** y trae un **buscador sobre 5050 paradas + las 72 líneas** para configurar tocando botones, sin escribir códigos.
+Un widget [OWL para omalauncher](https://github.com/SimonSchubert/omarchy-widgets) que consulta los arribos de Tu Bondi sin instalar un backend .NET. Elegí tus paradas y líneas desde el propio widget y consultá los próximos colectivos de un vistazo.
 
-## Configuración en 30 segundos (sin escribir códigos)
+<p align="center">
+  <img src="preview.png" alt="Captura real del widget Tu Bondi en el tile de inicio" width="290">
+  <img src="preview-screen.png" alt="Captura real de la vista ampliada con arribos y configuración" width="390">
+</p>
 
-1. Instalá el widget (ver abajo) y **tocá el tile** para abrir la vista completa.
-2. Bajá a **configurar** → pestaña **paradas**: tocá los códigos de tu barrio (se ponen verdes y entran en "mis paradas"). Agregá los de casa y los del trabajo, por ejemplo `A911` + `CE56`.
-3. Pestaña **líneas**: tocá las que te sirven, o una empresa entera (`todas coniferal`), o dejá **todas las lineas** para ver todo lo que pasa por tus paradas.
-4. Listo: el tile muestra los 2 arribos más próximos entre todas tus paradas. Todo persiste entre reinicios.
+<p align="center"><sub>Capturas del widget incluidas en el repositorio, generadas mediante owl-check.</sub></p>
 
-Opciones extra en la pestaña **manual**: escribir códigos a mano (`A911,A45`), duplicar el archivo para grupos independientes (`30-tu-bondi-casa.owl` + `31-tu-bondi-trabajo.owl`), y links a Tu Bondi web y al repo original.
+**Por defecto:** parada A911 (Av. Duarte Quirós 1717–1728), líneas 40, 42 y 71. Podés agregar varias paradas y filtrar entre las líneas disponibles sin escribir códigos.
 
-## ¿Qué es este proyecto?
-
-Un widget OWL de un solo archivo (`widget.owl`, ~7 KB) que replica el tablero LED del repo original:
-
-- Fila superior: parada(s) + reloj (se actualiza cada 30 s). Con varias paradas muestra `bondi ×N`.
-- Fila central: próximos 2 arribos en el tile (hasta 6 en la vista completa, mezclando todas las paradas y ordenados por ETA), con línea, parada, destino, distancia, empresa y minutos restantes. Si hay `notificacion`, muestra fila de alerta amarilla.
-- Fila inferior: “actualizado HH:mm”.
-- Vista completa (`screen`, toca el tile): arribos agrupados por parada con detalle, avisos, reloj HH:mm:ss y configuración de paradas/líneas con `Input` (persisten entre reinicios).
-- Sin servicio (de noche o API caída): muestra “offline / sin arribos” y botón de reintentar, igual que el manejo de errores del backend original.
-
-## ¿Cómo funciona (de punta a punta)?
-
-```
-┌──────────┐  cada 60 s   ┌───────────────────┐  POST form   ┌──────────────┐
-│ widget   │ ───────────▶ │ bash (curl + jq)  │ ───────────▶ │ Tu Bondi     │
-│ (OWL)    │  cmd + status│ sesion PHPSESSID  │  urb_cmd.php │ (cbaciudad)  │
-└──────────┘              └───────────────────┘              └──────────────┘
-      ▲                            │ normaliza a JSON                │
-      │                            ▼                                 │
-      │                   {stops[], arrivals[] (+stop), updated, error}   │
-      │                   filtra por lineas, ordena por ETA           │
-      └────────────────── tile 3x3 + screen ─────────────────────────┘
-```
-
-1. El `cmd` abre sesión con `GET /usuario/urbano.php?conf=cbaciudad` (cookie `PHPSESSID` en cookiejar temporal), extrae `operacion:'…'` del HTML, registra un `fp` aleatorio vía `POST ...?cmd=vista` y luego hace **un `POST /usuario/urbano2_cmd.php` por parada** con headers de browser + `X-Device-FlakerParam` y form `conf`, `codigo`, `show80min=true`, `onlygps_array={}`, `cmd=proximos_arribos` — los mismos parámetros que `TuBondiClient.GetArrivalsAsync` en el repo original, más el ritual anti-408 que exige el servidor (ver `docs/api.md`). Una sola sesión sirve para todas.
-2. `jq` normaliza cada `proximos_arribos` a `{line, dest, route, etaTxt, eta, dist, color, op, notif}` más `stop`, y combina todo en `{stops, arrivals, updated, error}`. `eta` se extrae igual que `TuBondiGateway.ParseEta`: “arribando/llega” → 0, si no los dígitos (`11min` → 11).
-3. El widget filtra por las líneas configuradas, ordena por `eta` y toma 6 (2 en el tile; con varias paradas cada fila indica `línea · parada`).
-4. Si el POST falla o no es JSON, el script imprime `{"error":"offline",...}` y el tile ofrece reintentar, como el `fetchLoop` de `board.js`.
+> [!NOTE]
+> Este proyecto es el widget de [Tu-Bondi-Tracker](https://github.com/LucioB16/Tu-Bondi-Tracker). Consulta la misma fuente de datos, pero desde OWL y comandos locales. Los arribos dependen de la disponibilidad del servicio de Tu Bondi.
 
 ## Requisitos previos
 
-- Un teléfono con omalauncher + Linux opcional (este widget necesita Linux porque usa `cmd`).
+- Un entorno con **omalauncher y ejecución de comandos Linux**: el widget usa `cmd`.
 - En Arch: `curl` y `jq` (declarados en `requires { pacman: ["curl", "jq"] }`).
 - Acceso a Internet a `https://micronauta4.dnsalias.net`.
 
-## Instalación y ejecución local
+## Instalación
 
 1. Copiá el widget a tu home-screen:
    ```
@@ -69,6 +43,40 @@ Un widget OWL de un solo archivo (`widget.owl`, ~7 KB) que replica el tablero LE
    owl-check 30-tu-bondi.owl
    ```
    Imprime los errores y la ruta del PNG del tile (y de su screen, porque tiene una). Abrilos para ver si el texto entra.
+
+## Configurá tus paradas y líneas
+
+1. Instalá el widget (ver abajo) y **tocá el tile** para abrir la vista completa.
+2. Bajá a **configurar** → pestaña **paradas**: tocá los códigos de tu barrio (se ponen verdes y entran en "mis paradas"). Agregá los de casa y los del trabajo, por ejemplo `A911` + `CE56`.
+3. Pestaña **líneas**: tocá las que te sirven, o una empresa entera (`todas coniferal`), o dejá **todas las lineas** para ver todo lo que pasa por tus paradas.
+4. Listo: el tile muestra los 2 arribos más próximos entre todas tus paradas. Todo persiste entre reinicios.
+
+Opciones extra en la pestaña **manual**: escribir códigos a mano (`A911,A45`), duplicar el archivo para grupos independientes (`30-tu-bondi-casa.owl` + `31-tu-bondi-trabajo.owl`), y links a Tu Bondi web y al repo original.
+
+## Qué muestra el widget
+
+La implementación está en un solo archivo (`widget.owl`) y adapta el tablero LED del proyecto original:
+
+- Fila superior: parada(s) + reloj (se actualiza cada 30 s). Con varias paradas muestra `bondi ×N`.
+- Fila central: próximos 2 arribos en el tile (hasta 6 en la vista completa, mezclando todas las paradas y ordenados por ETA), con línea, parada, destino, distancia, empresa y minutos restantes. Si hay `notificacion`, muestra fila de alerta amarilla.
+- Fila inferior: “actualizado HH:mm”.
+- Vista completa (`screen`, toca el tile): arribos agrupados por parada con detalle, avisos, reloj HH:mm:ss y configuración de paradas/líneas con `Input` (persisten entre reinicios).
+- Sin servicio (de noche o API caída): muestra “offline / sin arribos” y botón de reintentar, igual que el manejo de errores del backend original.
+
+## ¿Cómo funciona (de punta a punta)?
+
+```mermaid
+flowchart TD
+    A["Widget OWL: tile y vista completa"] -->|"Cada 60 segundos"| B["curl + jq: sesión y normalización"]
+    B -->|"POST por parada"| C["Servicio Tu Bondi"]
+    C -->|"Próximos arribos"| B
+    B -->|"JSON filtrado por línea y ETA"| A
+```
+
+1. El `cmd` abre sesión con `GET /usuario/urbano.php?conf=cbaciudad` (cookie `PHPSESSID` en cookiejar temporal), extrae `operacion:'…'` del HTML, registra un `fp` aleatorio vía `POST ...?cmd=vista` y luego hace **un `POST /usuario/urbano2_cmd.php` por parada** con headers de browser + `X-Device-FlakerParam` y form `conf`, `codigo`, `show80min=true`, `onlygps_array={}`, `cmd=proximos_arribos` — los mismos parámetros que `TuBondiClient.GetArrivalsAsync` en el repo original, más el ritual anti-408 que exige el servidor (ver `docs/api.md`). Una sola sesión sirve para todas.
+2. `jq` normaliza cada `proximos_arribos` a `{line, dest, route, etaTxt, eta, dist, color, op, notif}` más `stop`, y combina todo en `{stops, arrivals, updated, error}`. `eta` se extrae igual que `TuBondiGateway.ParseEta`: “arribando/llega” → 0, si no los dígitos (`11min` → 11).
+3. El widget filtra por las líneas configuradas, ordena por `eta` y toma 6 (2 en el tile; con varias paradas cada fila indica `línea · parada`).
+4. Si el POST falla o no es JSON, el script imprime `{"error":"offline",...}` y el tile ofrece reintentar, como el `fetchLoop` de `board.js`.
 
 ## Catálogo de paradas y líneas
 
@@ -115,11 +123,6 @@ Para probar el layout con datos aunque la API esté caída, este repo trae `api-
 - **Rate limiting**: un solo comando a la vez; si falla, espera al próximo intervalo o toca reintentar.
 - **Privacidad**: la cookie `PHPSESSID` vive en un `mktemp` que se borra en cada corrida. Nunca se expone.
 - **Seguridad**: siempre HTTPS contra `micronauta4.dnsalias.net`.
-
-## Capturas y demo
-
-- `preview.png`: PNG del tile generado por `owl-check` (ver última corrida).
-- Original: `https://github.com/LucioB16/Tu-Bondi-Tracker` y su `docs/led-board.svg`.
 
 ## Preguntas frecuentes
 
